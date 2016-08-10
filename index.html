@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>ERASify</title>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+	
+	<link rel="stylesheet" href="stylesheet.css">
+	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/imgareaselect/0.9.10/css/imgareaselect-default.css" />
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+	 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/imgareaselect/0.9.10/js/jquery.imgareaselect.pack.js"></script>
+	 
+	<script>
+	
+	$(document).ready(function() {
+		$('#fileupload').change(function() {
+		
+			var formData = new FormData();
+			
+			//get file extension
+			var fileExt0 = this.files[0].name.split(".").pop().toLowerCase();
+			
+			//make sure its png, jpg, or gif
+			if( fileExt0 != "jpg" && fileExt0 != "png" && fileExt0 != "gif" )
+			{
+				$("#progress").html("Please select an image file.");
+				return;
+			}
+			
+			//append to the formData
+			formData.append("img", this.files[0]);
+
+			//start progress bar
+			$("#progress").html('<div style="width: 450px;"><div class="bar" style="width: 0%; background-color: #002878;"></div></div>');
+			
+			/** First - upload image to server and then bring up cropping UI */
+			$.ajax({
+				url: "upload.php?uploadonly=true", 
+				type: "POST",
+				dataType: "json",
+				data: formData,
+				processData: false,
+				contentType: false,
+				cache: false,
+				xhr: function() {
+					var xhr = new window.XMLHttpRequest(); 
+					xhr.upload.addEventListener("progress", function(evt) {
+						if (evt.lengthComputable) {
+							var percentComplete = 100 * evt.loaded / evt.total;
+							$('#progress .bar').css(
+								'width',
+								percentComplete + '%'
+							);
+						}
+				   }, false);
+				   return xhr;
+				},
+				success: function(msg) { 
+					if(msg.success == false)	//error
+					{
+						$("#progress").html(msg.err);
+					}
+					else
+					{
+						$("#upload_form").html("");
+						$("#upload_form").dialog("widget").animate({
+							width: 850, 
+							height: 850
+						  }, {
+						  duration: 500,
+						  step: function() {
+							$('#upload_form').dialog('widget').position({my:"center", at:"center", of:window});
+						  },
+						  complete: function() {
+							 $("#upload_form").html('<img id="cropme" src="' + msg.data + '">');
+							$("#upload_form").css("width", "800px");
+							$("#upload_form").css("height", "800px");
+							$("#cropme").imgAreaSelect({
+								handles: true,
+								aspectRatio: "5:7",
+								autoHide: false,
+								x1: 0,
+								y1: 0,
+								y2: 350,
+								x2: 250,
+								imageHeight: msg.h,
+								imageWidth: msg.w,
+								persistent: true
+							});
+							$("#upload_form").append("<div style='text-align: center;'><br/>Crop the desired portion of your image, then click the button below.</div><br/><br/><span id='erasifybutton' class='btn btn-lg' style='cursor: pointer;'>ERASify!</span>");
+							
+							$('#erasifybutton').click(function() {
+								var selInds = $("#cropme").imgAreaSelect({instance: true}).getSelection();
+								
+								//Build a form and submit it (based off example at https://gist.github.com/DavidMah/3533415)
+								var form = $('<form></form>')
+									.attr('action', "upload.php")
+									.attr('method', 'post');
+								//Data parameters
+								form.append($("<input></input>")
+									.attr('name', "x1")
+									.attr('value', selInds.x1));
+								form.append($("<input></input>")
+									.attr('name', "y1")
+									.attr('value', selInds.y1));
+								form.append($("<input></input>")
+									.attr('name', "x2")
+									.attr('value', selInds.x2));
+								form.append($("<input></input>")
+									.attr('name', "y2")
+									.attr('value', selInds.y2));
+								form.append($("<input></input>")
+									.attr('name', "fnm")
+									.attr('value', msg.fnm));
+									
+								//send request and delete form
+								form.appendTo('#upload_form').submit().remove();
+							});
+						  }
+						});
+					}
+				},
+				error: function(msg) { console.log(msg); }
+			});
+		});
+		var dialog = $("#upload_form").dialog({
+			autoOpen: true,
+			height: 325,
+			width: 500,
+			resizable: false,
+			title: '',
+			dialogClass: "no-close"
+		});
+		
+	});
+	</script>
+</head>
+<body>
+<div id="upload_form" style="text-align: center;">
+	<div style="font-size: 28px;">
+		<br/>Upload your headshot<br/>
+		<span style="font-size: 16px;">Accepted formats: JPG, PNG, GIF</span>
+		<br/><br/>
+		<span class="btn btn-lg fileinput-button">
+			<div style="font-size: 18px;">Select image...</div>
+			<form id="fileupload_form" enctype="multipart/form-data">
+				<input id="fileupload" type="file" accept=".gif,.jpg,.png"  name="imgs" multiple>
+			</form>
+		</span>
+		<div id="progress"></div>
+	</div>
+</div>	
+</body>
+</html>

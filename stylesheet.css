@@ -1,0 +1,55 @@
+body {
+	background-color: rgb(181, 194, 191);
+}	
+
+.btn {
+  text-transform: uppercase;
+  border: 0;
+  background-color: #002878;
+  color: white;
+  cursor: pointer;
+  
+}
+.btn:hover {
+  background-color: #44C7F4;
+  cursor: pointer;
+}
+.btn.btn-lg {
+  padding: 20px 30px;
+  cursor: pointer;
+}
+ 
+.ui-state-focus, .ui-dialog-titlebar{
+	background: none !important;
+	background-color: #002878 !important;
+}
+
+.no-close .ui-dialog-titlebar-close {
+  display: none !important;
+}
+
+.fileinput-button {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+.fileinput-button input {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  opacity: 0;
+  -ms-filter: 'alpha(opacity=0)';
+  font-size: 200px !important;
+  direction: ltr;
+  cursor: pointer;
+}
+
+#progress {
+	color: firebrick;
+}
+
+.bar {
+    height: 25px;
+    background: #002878;
+}

@@ -13,8 +13,9 @@ try {
 	{
 		if(!isset($_FILES['img']))
 			throw new RuntimeException('Image not uploaded to server.');
+
 		$file = $_FILES['img'];
-		
+
 		//error parameter from upload
 		switch ($file['error'])
 		{
@@ -28,13 +29,14 @@ try {
 			default:
 				throw new RuntimeException('Unknown error occured.');
 		}
-		
-		// make sure extension is .jpg/.png/.gif and the MIME type is appropriate
+
+		// make sure extension is .jpg/.jpeg/.png/.gif and the MIME type is appropriate
 		$finfo = new finfo(FILEINFO_MIME_TYPE);
 		if (false === $ext = array_search(
 			$finfo->file($file['tmp_name']),
 			array(
 				'jpg' => 'image/jpeg',
+				'jpeg' => 'image/jpeg',
 				'png' => 'image/png',
 				'gif' => 'image/gif',
 			),
@@ -43,19 +45,19 @@ try {
 			throw new RuntimeException('Invalid file type.');
 		}
 		$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-		if($ext != "png" && $ext != "jpg" && $ext != "gif")
+		if($ext != "png" && $ext != "jpg" && $ext != "jpeg" && $ext != "gif")
 			throw new RuntimeException('Invalid file type');
-			
+
 		//use the SHA1 hash to store the image data
 		$sha = sha1_file($file['tmp_name']);
 		$fnm = $basedir . $sha . '.' . $ext;
-		
+
 		//copy the file over
 		move_uploaded_file($file['tmp_name'], $fnm);
-		
+
 		//put the SHA1 hash and file name in the return variable
 		$ra['fnm'] = $sha . '.' . $ext;
-		
+
 		//get the true image height and width
 		switch($ext)
 		{
@@ -63,6 +65,7 @@ try {
 				$img = imagecreatefromgif($fnm);
 				break;
 			case 'jpg':
+			case 'jpeg':
 				$img = imagecreatefromjpeg($fnm);
 				break;
 			case 'png':
@@ -71,7 +74,7 @@ try {
 		}
 		$h = imagesy($img);
 		$w = imagesx($img);
-		
+
 		//enable max width or height of 600, while maintaining aspect ratio
 		if($h >= $w && $h > 600)	{
 			$sf = 600 / $h;
@@ -80,15 +83,15 @@ try {
 		} else {
 			$sf = 1.0;
 		}
-		
+
 		$ra['sf'] = $sf;
-		
+
 		$nh = floor($h * $sf);
 		$nw = floor($w * $sf);
-		
+
 		$img_new = imagecreatetruecolor($nw, $nh);
 		imagecopyresampled($img_new, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
-		
+
 		//encode as base 64
 		ob_start();
 		switch($ext)
@@ -98,6 +101,7 @@ try {
 				imagegif($img_new, $fnm);
 				break;
 			case 'jpg':
+			case 'jpeg':
 				imagejpeg($img_new);
 				imagejpeg($img_new, $fnm);
 				break;
@@ -108,9 +112,9 @@ try {
 		}
 		$imgdata = ob_get_contents();
 		ob_end_clean();
-		
-        $ra['data'] = 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($fnm));
-		
+
+		$ra['data'] = 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($fnm));
+
 		//flag success
 		$ra['success'] = true;
 
@@ -123,38 +127,36 @@ try {
 		//get the POST variables we need
 		if(!isset($_POST['fnm']) || !isset($_POST['x2']) || !isset($_POST['x1']) || !isset($_POST['y2']) || !isset($_POST['y1']))
 			throw new RuntimeException('Variables not set.');
-		
+
 		//get the filepath to the file
 		$fnm = $basedir . $_POST['fnm'];
-		
+
 		//load the image
 		$ext = strtolower(pathinfo($fnm, PATHINFO_EXTENSION));
-		if($ext != "png" && $ext != "jpg" && $ext != "gif")
+		if($ext != "png" && $ext != "jpg" && $ext != "jpeg" && $ext != "gif")
 			throw new RuntimeException('Invalid file type');
-		
+
 		switch($ext)
 		{
 			case 'gif':
 				$img = imagecreatefromgif($fnm);
 				break;
 			case 'jpg':
+			case 'jpeg':
 				$img = imagecreatefromjpeg($fnm);
 				break;
 			case 'png':
 				$img = imagecreatefrompng($fnm);
 				break;
 		}
-		
+
 		if(!$img)
-		{
-			echo 'failed to load image: ' . $fnm;
-			die();
-		}
-		
+			throw new RuntimeException('Server failed to load image');
+
 		//crop it based on the POSTed variables
 		$h = $_POST['y2'] - $_POST['y1'];
 		$w = $_POST['x2'] - $_POST['x1'];
-		
+
 		//if the height > 525 or width > 375, shrink it down
 		if($h > 525 )
 		{
@@ -164,7 +166,7 @@ try {
 			$img_new = imagecreatetruecolor($w, $h);
 			imagecopyresampled($img_new, $img, 0, 0, $_POST['x1'], $_POST['y1'], $w, $h, $w, $h);
 		}
-		
+
 		//resample to 150 DPI
 		ob_start();
 		switch($ext)
@@ -173,6 +175,7 @@ try {
 				imagegif($img_new);
 				break;
 			case 'jpg':
+			case 'jpeg':
 				imagejpeg($img_new);
 				break;
 			case 'png':
@@ -183,7 +186,7 @@ try {
 		ob_end_clean();
 		$img = substr_replace($img, pack("Cnn", 0x01, 150, 150), 13, 5);
 		$img = imagecreatefromstring($img);
-		
+
 		//give headers then download file
 		switch($ext)
 		{
@@ -191,6 +194,7 @@ try {
 				imagegif($img, $fnm);
 				break;
 			case 'jpg':
+			case 'jpeg':
 				imagejpeg($img, $fnm);
 				break;
 			case 'png':
@@ -198,7 +202,7 @@ try {
 				break;
 		}
 		$file = fopen($fnm, "rb");
-		
+
 		header('Content-Description: File Transfer');
 		header('Content-Type: application/octet-stream');
 		header('Content-Disposition: attachment; filename='.basename($fnm));
@@ -208,8 +212,8 @@ try {
 		header('Pragma: public');
 		header('Content-Length: ' . filesize($fnm));
 		fpassthru($file);
-		
-		//delete file
+
+		//close and delete file
 		fclose($file);
 		unlink($fnm);
 	}
@@ -218,8 +222,8 @@ try {
 	$ra['success'] = false;
 
 	//set the error message
-    $ra['err'] = $e->getMessage();
-	
+	$ra['err'] = $e->getMessage();
+
 	header('Content-Type: application/json');
 	echo json_encode($ra);
 }

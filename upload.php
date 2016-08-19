@@ -185,24 +185,8 @@ try {
 		$img = ob_get_contents();
 		ob_end_clean();
 		$img = substr_replace($img, pack("Cnn", 0x01, 150, 150), 13, 5);
-		$img = imagecreatefromstring($img);
 
 		//give headers then download file
-		switch($ext)
-		{
-			case 'gif':
-				imagegif($img, $fnm);
-				break;
-			case 'jpg':
-			case 'jpeg':
-				imagejpeg($img, $fnm);
-				break;
-			case 'png':
-				imagepng($img, $fnm);
-				break;
-		}
-		$file = fopen($fnm, "rb");
-
 		header('Content-Description: File Transfer');
 		header('Content-Type: application/octet-stream');
 		header('Content-Disposition: attachment; filename='.basename($fnm));
@@ -210,11 +194,10 @@ try {
 		header('Expires: 0');
 		header('Cache-Control: must-revalidate');
 		header('Pragma: public');
-		header('Content-Length: ' . filesize($fnm));
-		fpassthru($file);
+		header('Content-Length: ' . strlen($img));
+		echo $img;
 
-		//close and delete file
-		fclose($file);
+		//delete uploaded file
 		unlink($fnm);
 	}
 } catch (RuntimeException $e) {
